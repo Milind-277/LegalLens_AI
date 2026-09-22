@@ -1,0 +1,34 @@
+# Core Framework
+Flask==3.0.0
+Flask-Cors==5.0.1
+Werkzeug==3.0.3
+
+# AI
+google-generativeai==0.7.2
+
+# Document Processing
+pypdf==5.6.0
+python-docx==1.2.0
+
+# Data Validation
+pydantic==2.13.4
+
+# Security
+bleach==6.2.0
+
+# Logging
+structlog==24.2.0
+
+# Resilience
+tenacity==9.1.4
+
+# Environment
+python-dotenv==1.0.1
+
+# Development & Testing
+pytest==8.2.2
+pytest-cov==5.0.0
+pytest-mock==3.14.0
+ruff==0.4.10
+black==26.5.1
+isort==8.0.1

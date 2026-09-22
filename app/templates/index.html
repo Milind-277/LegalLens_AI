@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LegalLens AI - Understand your legal documents with GenAI assistance">
+    <title>LegalLens AI - Document Intelligence</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <header class="app-header">
+        <div class="header-container">
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <circle cx="12" cy="11" r="3"/>
+                </svg>
+                <span>LegalLens <strong>AI</strong></span>
+            </div>
+            <nav class="main-nav" aria-label="Main Navigation">
+                <a href="#/" class="nav-link">Home</a>
+                <a href="#/workspace" class="nav-link" id="nav-workspace" style="display: none;">Workspace</a>
+                <a href="#/compare" class="nav-link">Compare</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="legal-disclaimer-banner" role="alert" aria-live="polite">
+        <strong>Information Only:</strong> LegalLens AI provides document analysis assistance, not legal advice. Always consult a qualified attorney for legal guidance.
+        <button class="dismiss-banner" aria-label="Dismiss disclaimer">×</button>
+    </div>
+
+    <main id="main-content" class="app-main">
+        <div id="app-root">
+            <!-- Views will be mounted here by app.js -->
+            <div class="loading-state">
+                <div class="spinner"></div>
+                <p>Loading LegalLens AI...</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <footer class="app-footer">
+        <div class="footer-content">
+            <p>&copy; 2026 LegalLens AI. Built for Prompt Wars Challenge 5.</p>
+            <p class="footer-disclaimer">This application does not provide legal advice.</p>
+        </div>
+    </footer>
+
+    <!-- JS modules -->
+    <script type="module" src="/js/app.js"></script>
+</body>
+</html>

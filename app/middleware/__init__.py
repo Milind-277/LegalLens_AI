@@ -1,0 +1,1 @@
+"""LegalLens AI — Middleware package."""
