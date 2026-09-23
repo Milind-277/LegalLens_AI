@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from flask import Blueprint, current_app, jsonify, request
 
-from app.ai.client import AIClient
+from app.ai.client import AIClient, AIClientError
 from app.models.responses import APIResponse
 from app.services.comparison_service import compare_documents
 from app.services.document_service import document_store
+from app.services.fallback_service import fallback_compare
 from app.utils.validators import ValidationError
 
 bp = Blueprint("comparison", __name__, url_prefix="/api/documents")
@@ -43,6 +44,22 @@ def compare() -> tuple:
         timeout_seconds=current_app.config["AI_TIMEOUT_SECONDS"],
     )
 
-    result = compare_documents(doc_a, doc_b, ai_client)
+    try:
+        result = compare_documents(doc_a, doc_b, ai_client)
+        ai_available = True
+    except AIClientError:
+        result = fallback_compare(doc_a, doc_b)
+        ai_available = False
 
-    return jsonify(APIResponse.ok(data=result.model_dump()).model_dump()), 200
+    payload = result.model_dump()
+    payload["ai_available"] = ai_available
+    return (
+        jsonify(
+            APIResponse.ok(
+                data=payload,
+                ai_available=ai_available,
+                analysis_mode="ai" if ai_available else "fallback",
+            ).model_dump()
+        ),
+        200,
+    )

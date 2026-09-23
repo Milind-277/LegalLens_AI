@@ -1,202 +1,346 @@
 /**
- * LegalLens AI - Application State and Routing
+ * LegalLens AI — Application Orchestrator
+ *
+ * Responsibilities:
+ *  - Hash-based SPA routing
+ *  - Document state management (localStorage persistence)
+ *  - API call orchestration
+ *  - AI status polling
+ *  - Event delegation
  */
-import { api } from './api.js';
+import { api }        from './api.js';
 import { components } from './components.js';
-import { views } from './views.js';
+import { views }      from './views.js';
 
 class App {
     constructor() {
-        this.root = document.getElementById('app-root');
-        this.currentDocId = localStorage.getItem('legallens_current_doc');
-        this.document = null;
-        this.cache = new Map();
-        
-        this.init();
+        this.root         = document.getElementById('app-root');
+        this.currentDocId = localStorage.getItem('legallens_current_doc') || null;
+        this.document     = null;       // current Document metadata
+        this.cache        = new Map();  // per-doc analysis cache
+        this.aiConfigured = null;       // tri-state: null = unknown, true, false
     }
 
     async init() {
-        // Setup disclaimer dismissal
-        document.querySelector('.dismiss-banner')?.addEventListener('click', (e) => {
-            e.target.closest('.legal-disclaimer-banner').style.display = 'none';
+        // Dismiss disclaimer banner
+        document.getElementById('dismiss-disclaimer')?.addEventListener('click', (ev) => {
+            ev.currentTarget.closest('.legal-disclaimer-banner')?.remove();
         });
 
-        // Setup routing
-        window.addEventListener('hashchange', () => this.handleRoute());
-        
-        // Initial load
-        await this.handleRoute();
+        // Hash-based routing
+        window.addEventListener('hashchange', () => this.route());
+
+        // Check AI status (non-blocking)
+        this._updateAiStatus();
+
+        // Initial render
+        await this.route();
     }
 
-    async handleRoute() {
-        const hash = window.location.hash.slice(1) || '/';
-        
-        // Update nav active state
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.remove('active');
-            if (link.getAttribute('href') === `#${hash.split('/')[1] || '/'}`) {
-                link.classList.add('active');
+    // ─── AI Status ────────────────────────────────────────────────────────────
+
+    async _updateAiStatus() {
+        const dot  = document.getElementById('ai-status-dot');
+        const text = document.getElementById('ai-status-text');
+        if (!dot || !text) return;
+
+        try {
+            const status = await api.getStatus();
+            this.aiConfigured = status.ai_configured;
+            if (status.ai_configured) {
+                dot.className  = 'ai-status-dot ready';
+                text.textContent = 'AI Ready';
+            } else {
+                dot.className  = 'ai-status-dot fallback';
+                text.textContent = 'Fallback Mode';
             }
+        } catch {
+            dot.className  = 'ai-status-dot fallback';
+            text.textContent = 'Status Unknown';
+        }
+    }
+
+    // ─── Router ───────────────────────────────────────────────────────────────
+
+    async route() {
+        const hash = window.location.hash.slice(1) || '/';
+
+        // Sync nav active state
+        document.querySelectorAll('.nav-link').forEach(link => {
+            const href = link.getAttribute('href') || '';
+            link.classList.toggle('active', href === `#${hash.split('/')[1] ? '/' + hash.split('/')[1] : '/'}`);
         });
 
-        // Show/hide workspace link based on active document
-        const wsLink = document.getElementById('nav-workspace');
-        if (wsLink) {
-            wsLink.style.display = this.currentDocId ? 'inline-block' : 'none';
+        // Toggle workspace nav item
+        const wsNav = document.getElementById('nav-workspace');
+        if (wsNav) {
+            if (this.currentDocId) {
+                wsNav.classList.remove('hidden');
+            } else {
+                wsNav.classList.add('hidden');
+            }
         }
 
         try {
             if (hash === '/') {
-                await this.renderHome();
-            } else if (hash === '/workspace') {
-                if (!this.currentDocId) {
-                    window.location.hash = '/';
-                    return;
-                }
-                await this.renderWorkspace('summary');
-            } else if (hash.startsWith('/workspace/')) {
-                if (!this.currentDocId) {
-                    window.location.hash = '/';
-                    return;
-                }
-                const tab = hash.split('/')[2];
-                await this.renderWorkspace(tab);
+                await this._renderHome();
+            } else if (hash === '/workspace' || hash.startsWith('/workspace/')) {
+                const tab = hash.split('/')[2] || 'summary';
+                await this._renderWorkspace(tab);
             } else if (hash === '/compare') {
-                await this.renderCompare();
+                await this._renderCompare();
             } else {
-                this.root.innerHTML = '<h2>404 - Not Found</h2>';
+                this.root.innerHTML = `<div class="page-container"><p class="text-muted">Page not found.</p></div>`;
             }
-        } catch (error) {
-            components.toast(error.message, 'error');
-            this.root.innerHTML = `<div class="card card-body text-center" style="color:var(--danger)">Error loading view: ${components.escapeHtml(error.message)}</div>`;
+        } catch (err) {
+            console.error('[App] Route error:', err);
+            this.root.innerHTML = `
+                <div class="page-container">
+                    <div class="card card-body text-center" style="color:var(--danger)">
+                        Something went wrong: ${components.escapeHtml(err.message)}
+                    </div>
+                </div>`;
         }
     }
 
-    // --- Data Fetching ---
+    // ─── Home ─────────────────────────────────────────────────────────────────
 
-    async loadCurrentDocument() {
-        if (!this.currentDocId) return false;
-        
+    async _renderHome() {
+        // Show quick skeleton
+        this.root.innerHTML = `<div class="page-container">${components.loader('Loading…')}</div>`;
+
+        let docs = [];
         try {
-            if (!this.document || this.document.id !== this.currentDocId) {
+            const data = await api.listDocuments();
+            docs = data.documents || [];
+        } catch { /* non-fatal */ }
+
+        const { html, bindEvents } = views.home(docs);
+        this.root.innerHTML = `<div class="page-container">${html}</div>`;
+        bindEvents(this);
+    }
+
+    // ─── Workspace ────────────────────────────────────────────────────────────
+
+    async _renderWorkspace(tab) {
+        if (!this.currentDocId) {
+            window.location.hash = '/';
+            return;
+        }
+
+        // Load document if needed
+        if (!this.document || this.document.id !== this.currentDocId) {
+            try {
                 this.document = await api.getDocument(this.currentDocId);
-                // Clear cache when document changes
-                this.cache.clear(); 
+            } catch {
+                // Document gone (e.g. server restarted) — go home
+                this._clearCurrentDoc();
+                window.location.hash = '/';
+                return;
             }
-            return true;
-        } catch (error) {
-            console.error("Failed to load document", error);
-            this.currentDocId = null;
-            this.document = null;
-            localStorage.removeItem('legallens_current_doc');
-            return false;
+        }
+
+        // Render the shell with sidebar + empty content
+        this.root.innerHTML = `
+            <div class="page-container">
+                ${views.workspaceShell(this.document, tab)}
+            </div>`;
+
+        // Wire workspace-level buttons
+        document.getElementById('btn-new-doc')?.addEventListener('click', () => {
+            this._clearCurrentDoc();
+            window.location.hash = '/';
+        });
+        document.getElementById('btn-delete-doc')?.addEventListener('click', () => {
+            this.handleDelete(this.currentDocId);
+        });
+
+        // Render tab content
+        const contentArea = document.getElementById('workspace-content');
+        contentArea.innerHTML = components.loader(`Loading ${tab}…`);
+
+        try {
+            await this._renderTab(tab, contentArea);
+        } catch (err) {
+            contentArea.innerHTML = `
+                <div class="card card-body text-center">
+                    <p style="color:var(--danger)">✕ ${components.escapeHtml(err.message)}</p>
+                    <button class="btn btn-secondary mt-3" onclick="window.location.reload()">Retry</button>
+                </div>`;
         }
     }
 
-    async fetchWithCache(key, fetcher) {
+    async _renderTab(tab, contentArea) {
+        const docId    = this.currentDocId;
+        const isDemo   = this.document?.filename?.includes('DEMO') || false;
+
+        switch (tab) {
+            case 'summary': {
+                const data       = await this._cached('summary', () => api.getSummary(docId));
+                const isFallback = data._metadata?.analysis_mode === 'fallback';
+                contentArea.innerHTML = views.summary(data, isFallback, isDemo);
+                this._bindRetryBtn(contentArea, 'summary');
+                break;
+            }
+            case 'clauses': {
+                const data       = await this._cached('clauses', () => api.getClauses(docId));
+                const isFallback = data._metadata?.analysis_mode === 'fallback';
+                contentArea.innerHTML = views.clauses(data.clauses, isFallback);
+                this._bindRetryBtn(contentArea, 'clauses');
+                break;
+            }
+            case 'risks': {
+                const data       = await this._cached('risks', () => api.getRisks(docId));
+                const isFallback = data._metadata?.analysis_mode === 'fallback';
+                contentArea.innerHTML = views.risks(data.review_flags, data.obligations, isFallback);
+                this._bindRetryBtn(contentArea, 'risks');
+                break;
+            }
+            case 'qa': {
+                const { html, bindEvents } = views.qa(docId);
+                contentArea.innerHTML = html;
+                bindEvents(this);
+                break;
+            }
+            case 'checklist': {
+                const data       = await this._cached('checklist', () => api.getChecklist(docId));
+                const isFallback = data._metadata?.analysis_mode === 'fallback';
+                contentArea.innerHTML = views.checklist(data.checklist, isFallback);
+                views.checklistBindEvents();
+                this._bindRetryBtn(contentArea, 'checklist');
+                break;
+            }
+            case 'lawyer': {
+                const data       = await this._cached('lawyer', () => api.getLawyerQuestions(docId));
+                const isFallback = data._metadata?.analysis_mode === 'fallback';
+                contentArea.innerHTML = views.lawyer(data.questions, isFallback);
+                this._bindRetryBtn(contentArea, 'lawyer');
+                break;
+            }
+            default:
+                contentArea.innerHTML = `<p class="text-muted">Unknown section.</p>`;
+        }
+    }
+
+    _bindRetryBtn(area, tab) {
+        area.querySelector('#retry-ai-btn')?.addEventListener('click', () => {
+            // Bust cache and re-render to try AI again
+            this.cache.delete(tab);
+            const contentArea = document.getElementById('workspace-content');
+            if (contentArea) {
+                contentArea.innerHTML = components.loader('Retrying AI analysis…');
+                this._renderTab(tab, contentArea).catch(() => {});
+            }
+        });
+    }
+
+    // ─── Compare ──────────────────────────────────────────────────────────────
+
+    async _renderCompare() {
+        this.root.innerHTML = `<div class="page-container">${components.loader('Loading comparison tool…')}</div>`;
+
+        let docs = [];
+        try {
+            const data = await api.listDocuments();
+            docs = data.documents || [];
+        } catch { /* non-fatal */ }
+
+        const { html, bindEvents } = views.compare(docs);
+        this.root.innerHTML = `<div class="page-container">${html}</div>`;
+        bindEvents(this);
+    }
+
+    // ─── Upload ───────────────────────────────────────────────────────────────
+
+    async handleUpload(file) {
+        if (!file) return;
+
+        this.root.innerHTML = `
+            <div class="page-container">
+                ${components.loader(`Uploading ${components.escapeHtml(file.name)}… this may take a moment`)}
+            </div>`;
+
+        try {
+            const doc = await api.uploadDocument(file);
+            this._setCurrentDoc(doc.id);
+            this.document = doc;
+            this.cache.clear();
+            components.toast(`"${doc.filename}" uploaded successfully!`, 'success');
+            window.location.hash = '/workspace/summary';
+        } catch (err) {
+            components.toast(`Upload failed: ${err.message}`, 'error');
+            await this._renderHome();
+        }
+    }
+
+    // ─── Demo ─────────────────────────────────────────────────────────────────
+
+    async handleDemo() {
+        this.root.innerHTML = `<div class="page-container">${components.loader('Loading sample employment agreement…')}</div>`;
+
+        try {
+            const doc = await api.loadDemo();
+            this._setCurrentDoc(doc.id);
+            this.document = doc;
+            this.cache.clear();
+            components.toast('Sample agreement loaded!', 'success');
+            window.location.hash = '/workspace/summary';
+        } catch (err) {
+            components.toast(`Could not load demo: ${err.message}`, 'error');
+            await this._renderHome();
+        }
+    }
+
+    // ─── Open existing doc ────────────────────────────────────────────────────
+
+    openDocument(docId) {
+        if (this.currentDocId !== docId) {
+            this._setCurrentDoc(docId);
+            this.document = null;
+            this.cache.clear();
+        }
+        window.location.hash = '/workspace/summary';
+    }
+
+    // ─── Delete ───────────────────────────────────────────────────────────────
+
+    async handleDelete(docId) {
+        if (!confirm('Delete this document and all its analysis? This cannot be undone.')) return;
+
+        try {
+            await api.deleteDocument(docId);
+            if (this.currentDocId === docId) this._clearCurrentDoc();
+            components.toast('Document deleted.', 'info');
+            await this._renderHome();
+        } catch (err) {
+            components.toast(`Delete failed: ${err.message}`, 'error');
+        }
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    async _cached(key, fetcher) {
         if (this.cache.has(key)) return this.cache.get(key);
         const data = await fetcher();
         this.cache.set(key, data);
         return data;
     }
 
-    // --- Renderers ---
-
-    async renderHome() {
-        const { html, bindEvents } = views.home();
-        this.root.innerHTML = html;
-        bindEvents(this);
+    _setCurrentDoc(id) {
+        this.currentDocId = id;
+        localStorage.setItem('legallens_current_doc', id);
     }
 
-    async renderWorkspace(tab) {
-        const loaded = await this.loadCurrentDocument();
-        if (!loaded) {
-            window.location.hash = '/';
-            return;
-        }
-
-        // Render skeleton
-        this.root.innerHTML = views.workspaceLayout(this.document, tab);
-        
-        // Render content
-        const contentArea = document.getElementById('workspace-content');
-        contentArea.innerHTML = components.loader(`Analyzing document for ${tab}...`);
-        
-        try {
-            let html = '';
-            let bindEvents = null;
-            
-            switch (tab) {
-                case 'summary':
-                    const summary = await this.fetchWithCache('summary', () => api.getSummary(this.currentDocId));
-                    html = views.summary(summary);
-                    break;
-                case 'clauses':
-                    const clausesData = await this.fetchWithCache('clauses', () => api.getClauses(this.currentDocId));
-                    html = views.clauses(clausesData.clauses);
-                    break;
-                case 'risks':
-                    const risksData = await this.fetchWithCache('risks', () => api.getRisks(this.currentDocId));
-                    html = views.risks(risksData.review_flags, risksData.obligations);
-                    break;
-                case 'qa':
-                    const qaView = views.qa(this.currentDocId);
-                    html = qaView.html;
-                    bindEvents = qaView.bindEvents;
-                    break;
-                case 'checklist':
-                    const checklistData = await this.fetchWithCache('checklist', () => api.getChecklist(this.currentDocId));
-                    html = views.checklist(checklistData.checklist);
-                    break;
-                case 'lawyer':
-                    const lawyerData = await this.fetchWithCache('lawyer', () => api.getLawyerQuestions(this.currentDocId));
-                    html = views.lawyer(lawyerData.questions);
-                    break;
-                default:
-                    html = `<p>Unknown tab.</p>`;
-            }
-            
-            contentArea.innerHTML = html;
-            if (bindEvents) bindEvents(this);
-            
-        } catch (error) {
-            contentArea.innerHTML = `<div class="card card-body text-center"><p style="color:var(--danger)">Analysis failed: ${components.escapeHtml(error.message)}</p></div>`;
-        }
-    }
-
-    async renderCompare() {
-        this.root.innerHTML = components.loader('Loading comparison tool...');
-        try {
-            const data = await api.listDocuments();
-            const { html, bindEvents } = views.compare(data.documents);
-            this.root.innerHTML = html;
-            bindEvents(this);
-        } catch (error) {
-            this.root.innerHTML = `<p>Error loading comparison tool.</p>`;
-        }
-    }
-
-    // --- Actions ---
-
-    async handleUpload(file) {
-        if (!file) return;
-        
-        this.root.innerHTML = components.loader('Uploading and processing document (this may take a moment)...');
-        
-        try {
-            const doc = await api.uploadDocument(file);
-            this.currentDocId = doc.id;
-            localStorage.setItem('legallens_current_doc', doc.id);
-            components.toast('Document uploaded successfully!');
-            window.location.hash = '/workspace/summary';
-        } catch (error) {
-            components.toast(`Upload failed: ${error.message}`, 'error');
-            await this.renderHome(); // go back
-        }
+    _clearCurrentDoc() {
+        this.currentDocId = null;
+        this.document     = null;
+        this.cache.clear();
+        localStorage.removeItem('legallens_current_doc');
     }
 }
 
-// Start app
+// ─── Bootstrap ────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new App();
+    window.app.init();
 });

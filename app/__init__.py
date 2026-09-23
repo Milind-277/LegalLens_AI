@@ -69,6 +69,28 @@ def create_app() -> Flask:
     def health_check() -> tuple:
         return jsonify(APIResponse.ok(message="LegalLens AI is running").model_dump()), 200
 
+    # AI availability status endpoint
+    @app.route("/api/status", methods=["GET"])
+    def ai_status() -> tuple:
+        """Check AI provider availability without making an actual AI call."""
+        api_key = app.config.get("GOOGLE_API_KEY", "")
+        ai_configured = bool(
+            api_key and api_key not in ("", "your_api_key_here", "test-key-not-real")
+        )
+        return (
+            jsonify(
+                APIResponse.ok(
+                    data={
+                        "ai_configured": ai_configured,
+                        "model": app.config.get("AI_MODEL_NAME", "gemini-1.5-flash"),
+                        "fallback_available": True,
+                        "status": "ai_ready" if ai_configured else "fallback_mode",
+                    }
+                ).model_dump()
+            ),
+            200,
+        )
+
     # Serve SPA frontend
     @app.route("/", defaults={"path": ""})
     @app.route("/<path:path>")

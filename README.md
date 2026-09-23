@@ -157,7 +157,7 @@ Navigate to `http://localhost:5000` in your browser.
 | `FLASK_ENV` | `development` | Flask environment |
 | `SECRET_KEY` | *(required)* | Flask session secret |
 | `MAX_UPLOAD_SIZE_MB` | `10` | Maximum upload file size in MB |
-| `AI_MODEL_NAME` | `gemini-3.6-flash` | Gemini model to use |
+| `AI_MODEL_NAME` | `gemini-1.5-flash` | Gemini model to use |
 | `AI_MAX_RETRIES` | `3` | Number of retry attempts on API failure |
 | `AI_TIMEOUT_SECONDS` | `60` | Request timeout in seconds |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
@@ -201,8 +201,8 @@ All endpoints return a consistent structure:
 
 | Metric | Value |
 |---|---|
-| Test count | 242 tests |
-| Test coverage | 91% |
+| Test count | 245 tests |
+| Test coverage | 84% |
 | Failing tests | 0 |
 | Ruff violations | 0 |
 | Black violations | 0 |

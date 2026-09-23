@@ -3,62 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="LegalLens AI - Understand your legal documents with GenAI assistance">
-    <title>LegalLens AI - Document Intelligence</title>
-    
-    <!-- Google Fonts -->
+    <meta name="description" content="LegalLens AI — Understand your legal documents with GenAI-powered analysis. Get plain-language summaries, key clause extraction, obligation tracking, and Q&A — all grounded in your document.">
+    <meta name="robots" content="noindex">
+    <title>LegalLens AI — Document Intelligence</title>
+
+    <!-- Preconnect -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
-    
+
+    <!-- Google Fonts: Inter + Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
     <!-- CSS -->
     <link rel="stylesheet" href="/css/styles.css">
+
+    <!-- Favicon (inline SVG) -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f1c3f'/%3E%3Ctext x='6' y='22' font-size='18' fill='%23c9a84c'%3E%E2%9A%96%3C/text%3E%3C/svg%3E">
 </head>
 <body>
+
+    <!-- Skip Navigation -->
     <a href="#main-content" class="skip-link">Skip to main content</a>
-    
-    <header class="app-header">
+
+    <!-- Header -->
+    <header class="app-header" role="banner">
         <div class="header-container">
-            <div class="logo">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    <circle cx="12" cy="11" r="3"/>
-                </svg>
-                <span>LegalLens <strong>AI</strong></span>
-            </div>
-            <nav class="main-nav" aria-label="Main Navigation">
-                <a href="#/" class="nav-link">Home</a>
-                <a href="#/workspace" class="nav-link" id="nav-workspace" style="display: none;">Workspace</a>
-                <a href="#/compare" class="nav-link">Compare</a>
+            <!-- Logo -->
+            <a href="#/" class="logo" aria-label="LegalLens AI — Home">
+                <div class="logo-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f1c3f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        <circle cx="12" cy="11" r="2.5" fill="#0f1c3f" stroke="none"/>
+                    </svg>
+                </div>
+                <span class="logo-text">LegalLens <strong>AI</strong></span>
+            </a>
+
+            <!-- Navigation -->
+            <nav class="header-nav" aria-label="Main navigation">
+                <a href="#/" class="nav-link" id="nav-home">Home</a>
+                <a href="#/workspace" class="nav-link hidden" id="nav-workspace">Workspace</a>
+                <a href="#/compare" class="nav-link" id="nav-compare">Compare</a>
             </nav>
+
+            <!-- Header Right -->
+            <div class="header-right">
+                <div class="ai-status" id="ai-status-indicator" aria-live="polite" aria-label="AI status">
+                    <span class="ai-status-dot loading" id="ai-status-dot"></span>
+                    <span id="ai-status-text">Checking AI…</span>
+                </div>
+            </div>
         </div>
     </header>
 
-    <div class="legal-disclaimer-banner" role="alert" aria-live="polite">
-        <strong>Information Only:</strong> LegalLens AI provides document analysis assistance, not legal advice. Always consult a qualified attorney for legal guidance.
-        <button class="dismiss-banner" aria-label="Dismiss disclaimer">×</button>
+    <!-- Legal Disclaimer Banner -->
+    <div class="legal-disclaimer-banner" role="complementary" aria-label="Legal disclaimer">
+        <svg class="disclaimer-icon" aria-hidden="true" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+        </svg>
+        <span>
+            <strong>Information only:</strong> LegalLens AI analyzes documents and provides information — not legal advice.
+            Always consult a qualified attorney for guidance specific to your situation.
+        </span>
+        <button class="dismiss-banner" aria-label="Dismiss disclaimer" id="dismiss-disclaimer">×</button>
     </div>
 
-    <main id="main-content" class="app-main">
+    <!-- Main Application -->
+    <main id="main-content" class="app-main" role="main">
         <div id="app-root">
-            <!-- Views will be mounted here by app.js -->
-            <div class="loading-state">
-                <div class="spinner"></div>
-                <p>Loading LegalLens AI...</p>
+            <!-- Initial loading state -->
+            <div class="page-container">
+                <div class="loading-state">
+                    <div class="spinner" role="status" aria-label="Loading application"></div>
+                    <p class="loading-text">Starting LegalLens AI…</p>
+                </div>
             </div>
         </div>
     </main>
 
-    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container" aria-live="assertive" aria-atomic="false"></div>
 
-    <footer class="app-footer">
-        <div class="footer-content">
-            <p>&copy; 2026 LegalLens AI. Built for Prompt Wars Challenge 5.</p>
-            <p class="footer-disclaimer">This application does not provide legal advice.</p>
+    <!-- Footer -->
+    <footer class="app-footer" role="contentinfo">
+        <div>
+            <p>© 2026 LegalLens AI · Built for Prompt Wars Challenge 5</p>
+            <p class="footer-disclaimer">This application provides document analysis assistance and does not constitute legal advice.</p>
         </div>
     </footer>
 
-    <!-- JS modules -->
+    <!-- JS Application (ES Modules) -->
     <script type="module" src="/js/app.js"></script>
 </body>
 </html>

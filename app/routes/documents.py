@@ -36,6 +36,29 @@ def upload_document() -> tuple:
     return jsonify(APIResponse.ok(data=doc.to_summary_dict()).model_dump()), 201
 
 
+@bp.route("/demo", methods=["POST"])
+def load_demo_document() -> tuple:
+    """Load the built-in demo document for demonstration purposes."""
+    from app.services.demo_service import (
+        DEMO_DOCUMENT_FILENAME,
+        DEMO_DOCUMENT_TEXT,
+    )
+
+    # Check if demo doc is already loaded
+    for doc in document_store._documents.values():
+        if "DEMO" in doc.filename:
+            return jsonify(APIResponse.ok(data=doc.to_summary_dict()).model_dump()), 200
+
+    demo_bytes = DEMO_DOCUMENT_TEXT.encode("utf-8")
+    doc = process_upload(
+        file_bytes=demo_bytes,
+        filename=DEMO_DOCUMENT_FILENAME,
+        max_size_bytes=current_app.config["MAX_CONTENT_LENGTH"],
+    )
+
+    return jsonify(APIResponse.ok(data=doc.to_summary_dict()).model_dump()), 201
+
+
 @bp.route("", methods=["GET"])
 def list_documents() -> tuple:
     """List all uploaded documents."""

@@ -6,9 +6,9 @@ import structlog
 from flask import Flask, jsonify
 from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
+from app.ai.client import AIClientError
 from app.models.responses import APIResponse
 from app.utils.validators import ValidationError
-from app.ai.client import AIClientError
 
 logger = structlog.get_logger(__name__)
 

@@ -8,12 +8,15 @@ from typing import Any
 import structlog
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
 )
 
 logger = structlog.get_logger(__name__)
+
+# Default model supported by the current Gemini API
+DEFAULT_MODEL = "gemini-3.6-flash"
 
 
 class AIClientError(Exception):
@@ -24,22 +27,29 @@ class AIClientError(Exception):
         super().__init__(message)
 
 
+def _should_retry(exc: BaseException) -> bool:
+    """Only retry retriable AIClientError instances."""
+    return isinstance(exc, AIClientError) and exc.retriable
+
+
 class AIClient:
     """Abstraction over Google Generative AI with retry, timeout, and structured output.
 
     This client never exposes the underlying SDK directly to business logic.
+    Gemini is an optional enhancement — all callers must handle AIClientError gracefully
+    and fall back to deterministic analysis.
     """
 
     def __init__(
         self,
         api_key: str,
-        model_name: str = "gemini-3.6-flash",
-        max_retries: int = 3,
-        timeout_seconds: int = 60,
+        model_name: str = DEFAULT_MODEL,
+        max_retries: int = 2,
+        timeout_seconds: int = 45,
     ) -> None:
         self._api_key = api_key
-        self._model_name = model_name
-        self._max_retries = max_retries
+        self._model_name = model_name or DEFAULT_MODEL
+        self._max_retries = max(1, min(max_retries, 5))  # clamp 1-5
         self._timeout_seconds = timeout_seconds
         self._model = None
         self._initialized = False
@@ -49,7 +59,7 @@ class AIClient:
         if self._initialized:
             return
 
-        if not self._api_key or self._api_key == "your_api_key_here":
+        if not self._api_key or self._api_key in ("", "your_api_key_here", "test-key-not-real"):
             raise AIClientError(
                 "Google API key is not configured. Set GOOGLE_API_KEY in your .env file.",
                 retriable=False,
@@ -62,17 +72,22 @@ class AIClient:
             self._model = genai.GenerativeModel(self._model_name)
             self._initialized = True
             logger.info("ai_client_initialized", model=self._model_name)
+        except ImportError as exc:
+            raise AIClientError(
+                "google-generativeai package is not installed.",
+                retriable=False,
+            ) from exc
         except Exception as exc:
             logger.error("ai_client_init_failed", error=str(exc))
             raise AIClientError(
-                "Failed to initialize AI client. Check your API key and network.",
+                "Failed to initialize AI client. Check your API key and network connectivity.",
                 retriable=False,
             ) from exc
 
     @retry(
-        retry=retry_if_exception_type(AIClientError),
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=30),
+        retry=retry_if_exception(_should_retry),
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=1, min=2, max=15),
         reraise=True,
     )
     def generate(self, prompt: str, system_instruction: str = "") -> str:
@@ -86,13 +101,13 @@ class AIClient:
             Raw text response from the model.
 
         Raises:
-            AIClientError: On API failure.
+            AIClientError: On API failure (retriable=False means do NOT retry).
         """
         self._ensure_initialized()
 
         try:
             generation_config = {
-                "temperature": 0.2,
+                "temperature": 0.1,  # Lower temp for more consistent, factual output
                 "max_output_tokens": 8192,
             }
 
@@ -112,10 +127,17 @@ class AIClient:
             raise
         except Exception as exc:
             error_msg = str(exc)
-            retriable = "429" in error_msg or "500" in error_msg or "503" in error_msg
-            logger.error("ai_generation_failed", error=error_msg, retriable=retriable)
+            # 429 = quota/rate limit, 500/503 = transient server errors
+            retriable = any(
+                code in error_msg for code in ("429", "500", "503", "RESOURCE_EXHAUSTED")
+            )
+            logger.error(
+                "ai_generation_failed",
+                error=error_msg[:200],  # Never log full content (may contain PII)
+                retriable=retriable,
+            )
             raise AIClientError(
-                error_msg,
+                _user_facing_error(error_msg),
                 retriable=retriable,
             ) from exc
 
@@ -130,6 +152,33 @@ class AIClient:
         """
         raw = self.generate(prompt, system_instruction)
         return parse_json_response(raw)
+
+    @property
+    def is_configured(self) -> bool:
+        """Return True if a valid API key appears to be set."""
+        return bool(
+            self._api_key and self._api_key not in ("", "your_api_key_here", "test-key-not-real")
+        )
+
+
+def _user_facing_error(raw_error: str) -> str:
+    """Convert raw SDK error message to a user-friendly message.
+
+    Never exposes internal paths, keys, or stack traces.
+    """
+    raw_lower = raw_error.lower()
+    if "429" in raw_error or "quota" in raw_lower or "resource_exhausted" in raw_lower:
+        return (
+            "The AI service quota has been reached. "
+            "Document-based fallback analysis is available — please wait before retrying AI features."
+        )
+    if "api_key" in raw_lower or "api key" in raw_lower or "permission" in raw_lower:
+        return "Invalid or missing AI API key. Check GOOGLE_API_KEY in your .env file."
+    if "timeout" in raw_lower or "deadline" in raw_lower:
+        return "The AI request timed out. The document may be very large — fallback analysis is available."
+    if "503" in raw_error or "unavailable" in raw_lower:
+        return "The AI service is temporarily unavailable. Fallback analysis is being used."
+    return "AI analysis is temporarily unavailable. Document-based fallback analysis is active."
 
 
 def parse_json_response(raw: str) -> dict[str, Any]:
@@ -162,7 +211,7 @@ def parse_json_response(raw: str) -> dict[str, Any]:
 
         logger.error("json_parse_failed", raw_preview=text[:200])
         raise AIClientError(
-            "Failed to parse AI response as JSON",
+            "Failed to parse AI response as structured data",
             retriable=False,
         ) from exc
 

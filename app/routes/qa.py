@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from flask import Blueprint, current_app, jsonify, request
 
-from app.ai.client import AIClient
+from app.ai.client import AIClient, AIClientError
 from app.models.responses import APIResponse
 from app.services.document_service import document_store
+from app.services.fallback_service import fallback_qa
 from app.services.qa_service import ask_question
 from app.utils.validators import ValidationError
 
@@ -33,11 +34,27 @@ def ask_document_question(doc_id: str) -> tuple:
         timeout_seconds=current_app.config["AI_TIMEOUT_SECONDS"],
     )
 
-    response = ask_question(
-        doc=doc,
-        question=question,
-        ai_client=ai_client,
-        max_context_chunks=current_app.config["AI_MAX_CONTEXT_CHUNKS"],
-    )
+    try:
+        response = ask_question(
+            doc=doc,
+            question=question,
+            ai_client=ai_client,
+            max_context_chunks=current_app.config["AI_MAX_CONTEXT_CHUNKS"],
+        )
+        ai_available = True
+    except AIClientError:
+        response = fallback_qa(doc, question)
+        ai_available = False
 
-    return jsonify(APIResponse.ok(data=response.model_dump()).model_dump()), 200
+    payload = response.model_dump()
+    payload["ai_available"] = ai_available
+    return (
+        jsonify(
+            APIResponse.ok(
+                data=payload,
+                ai_available=ai_available,
+                analysis_mode="ai" if ai_available else "fallback",
+            ).model_dump()
+        ),
+        200,
+    )
