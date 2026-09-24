@@ -32,3 +32,6 @@ pytest-mock==3.14.0
 ruff==0.4.10
 black==26.5.1
 isort==8.0.1
+
+# Production Server
+gunicorn==21.2.0

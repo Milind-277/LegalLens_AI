@@ -1,0 +1,32 @@
+SERVICE AGREEMENT
+
+This Service Agreement ("Agreement") is entered into as of October 1, 2026, by and between Apex Tech Solutions ("Service Provider") and Horizon Enterprises ("Client").
+
+1. SERVICES PROVIDED
+Service Provider agrees to provide web development, maintenance, and marketing services as described in Exhibit A (the "Services").
+
+2. TERM AND DURATION
+This Agreement shall commence on the date first written above and shall continue for a period of twenty-four (24) months. This Agreement will not automatically renew.
+
+3. COMPENSATION
+Client shall pay Service Provider a monthly fee of $7,500 for the Services. Payments are due within 30 days of receiving an invoice. If payment is late, a penalty of 10% of the outstanding balance will be applied.
+
+4. CONFIDENTIALITY
+Both parties agree to maintain the confidentiality of any proprietary information shared during the course of this Agreement for a period of five (5) years after termination.
+
+5. TERMINATION
+Either party may terminate this Agreement without cause by providing ninety (90) days prior written notice. If a party materially breaches this Agreement, the non-breaching party may terminate immediately if the breach is not cured within ten (10) days of notice.
+
+6. LIMITATION OF LIABILITY
+In no event shall Service Provider's total liability exceed the total amount paid by Client under this Agreement during the twelve (12) months preceding the claim.
+
+7. INDEMNIFICATION
+Client agrees to indemnify and hold Service Provider harmless from any claims arising from Client's use of the Services.
+
+8. DISPUTE RESOLUTION
+Any disputes arising out of this Agreement shall be resolved through binding arbitration in New York, New York.
+
+9. INTELLECTUAL PROPERTY
+All intellectual property created during the provision of Services shall belong exclusively to Client upon full payment of all fees.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement.

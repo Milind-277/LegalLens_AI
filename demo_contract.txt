@@ -1,0 +1,32 @@
+SERVICE AGREEMENT
+
+This Service Agreement ("Agreement") is entered into as of October 1, 2026, by and between Apex Tech Solutions ("Service Provider") and Horizon Enterprises ("Client").
+
+1. SERVICES PROVIDED
+Service Provider agrees to provide web development and maintenance services as described in Exhibit A (the "Services").
+
+2. TERM AND DURATION
+This Agreement shall commence on the date first written above and shall continue for a period of twelve (12) months. This Agreement will automatically renew for successive one (1) year periods unless either party provides written notice of non-renewal at least thirty (30) days before the end of the current term.
+
+3. COMPENSATION
+Client shall pay Service Provider a monthly fee of $5,000 for the Services. Payments are due within 15 days of receiving an invoice. If payment is late, a penalty of 5% of the outstanding balance will be applied.
+
+4. CONFIDENTIALITY
+Both parties agree to maintain the confidentiality of any proprietary information shared during the course of this Agreement for a period of three (3) years after termination.
+
+5. TERMINATION
+Either party may terminate this Agreement without cause by providing sixty (60) days prior written notice. If a party materially breaches this Agreement, the non-breaching party may terminate immediately if the breach is not cured within ten (10) days of notice.
+
+6. LIMITATION OF LIABILITY
+In no event shall Service Provider's total liability exceed the total amount paid by Client under this Agreement during the six (6) months preceding the claim.
+
+7. INDEMNIFICATION
+Client agrees to indemnify and hold Service Provider harmless from any claims arising from Client's use of the Services, except in cases of gross negligence.
+
+8. DISPUTE RESOLUTION
+Any disputes arising out of this Agreement shall be resolved through binding arbitration in San Francisco, California.
+
+9. INTELLECTUAL PROPERTY
+All intellectual property created during the provision of Services shall belong exclusively to Client upon full payment of all fees.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement.
