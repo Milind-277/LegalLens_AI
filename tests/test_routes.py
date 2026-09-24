@@ -2,6 +2,8 @@
 
 from unittest.mock import patch
 
+from app.ai.client import AIClientError
+from app.models.analysis import DocumentSummary
 from app.models.document import Document
 from app.services.document_service import document_store
 
@@ -62,6 +64,36 @@ def test_qa_endpoint(client):
         resp = client.post("/api/documents/123/ask", json={"question": "test?"})
         assert resp.status_code == 200
         assert resp.json["data"]["answer"] == "test answer"
+
+
+def test_summary_endpoint_uses_fallback_on_quota(client):
+    """Quota exhaustion should trigger the deterministic document fallback."""
+    doc = Document(
+        id="summary-fallback",
+        filename="summary.txt",
+        file_type="txt",
+        file_hash="hash-summary",
+        full_text="This is a services agreement between Party A and Party B.",
+    )
+    document_store.add(doc)
+
+    fallback_summary = DocumentSummary(
+        quick_summary="This is a services agreement between Party A and Party B.",
+        detailed_summary="Fallback summary based on the uploaded document.",
+        executive_summary="AI analysis is temporarily unavailable. Results are based on document text extraction.",
+        key_points=["Parties identified", "Service agreement"],
+        parties=["Party A", "Party B"],
+        document_type="Agreement",
+    )
+
+    with patch("app.routes.analysis.generate_summary", side_effect=AIClientError("429 RESOURCE_EXHAUSTED")):
+        with patch("app.routes.analysis.generate_fallback_summary", return_value=fallback_summary) as mock_fallback:
+            resp = client.get(f"/api/documents/{doc.id}/summary")
+            assert resp.status_code == 200
+            assert resp.json["success"] is True
+            assert resp.json["data"]["quick_summary"] == fallback_summary.quick_summary
+            assert resp.json["metadata"]["analysis_mode"] == "fallback"
+            mock_fallback.assert_called_once_with(doc)
 
 
 def test_compare_endpoint(client):

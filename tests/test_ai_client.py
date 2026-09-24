@@ -137,8 +137,8 @@ class TestAIClient:
         with pytest.raises(AIClientError):
             client.generate("test")
 
-    def test_rate_limit_error_is_retriable(self):
-        """429 errors should be marked retriable."""
+    def test_rate_limit_error_is_not_retriable(self):
+        """429 quota exhaustion should fail fast and trigger fallback, not retry storm."""
         client = AIClient(api_key="test-key")
         client._initialized = True
 
@@ -148,7 +148,19 @@ class TestAIClient:
 
         with pytest.raises(AIClientError) as exc_info:
             client.generate("test")
-        assert exc_info.value.retriable is True
+        assert exc_info.value.retriable is False
+
+    def test_quota_error_message_mentions_quota(self):
+        client = AIClient(api_key="test-key")
+        client._initialized = True
+
+        mock_model = MagicMock()
+        mock_model.generate_content.side_effect = Exception("429 RESOURCE_EXHAUSTED")
+        client._model = mock_model
+
+        with pytest.raises(AIClientError, match="quota") as exc_info:
+            client.generate("test")
+        assert "quota" in str(exc_info.value).lower()
 
     def test_503_error_is_retriable(self):
         """503 errors should be marked retriable."""

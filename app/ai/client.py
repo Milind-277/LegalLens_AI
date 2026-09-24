@@ -27,9 +27,22 @@ class AIClientError(Exception):
         super().__init__(message)
 
 
+def _is_quota_error(raw_error: str) -> bool:
+    """Detect Gemini quota/rate-limit failures that should fail fast."""
+    raw_lower = raw_error.lower()
+    return any(
+        marker in raw_error or marker in raw_lower
+        for marker in ("429", "quota", "rate limit", "resource_exhausted")
+    )
+
+
 def _should_retry(exc: BaseException) -> bool:
     """Only retry retriable AIClientError instances."""
-    return isinstance(exc, AIClientError) and exc.retriable
+    if not isinstance(exc, AIClientError):
+        return False
+    if _is_quota_error(str(exc)):
+        return False
+    return exc.retriable
 
 
 class AIClient:
@@ -127,9 +140,10 @@ class AIClient:
             raise
         except Exception as exc:
             error_msg = str(exc)
-            # 429 = quota/rate limit, 500/503 = transient server errors
-            retriable = any(
-                code in error_msg for code in ("429", "500", "503", "RESOURCE_EXHAUSTED")
+            # 429 quota/rate-limit errors must fail fast and trigger deterministic fallback.
+            # 500/503 are the only transient service failures that should retry.
+            retriable = not _is_quota_error(error_msg) and any(
+                code in error_msg for code in ("500", "503")
             )
             logger.error(
                 "ai_generation_failed",
